@@ -1,0 +1,211 @@
+  문제상황 : 하둡 파일시스템 데이터노드의 연결이 안되었음
+  원인 :  네임노드로 들어가는 연결의 차단
+  해결 : service iptables stop
+  
+  1 > 인증키
+  
+      629  hostname -I
+      630  cd /usr/local/hadoop/sbin
+      하둡 실행폴더로 이동
+
+      631  ./start-all.sh
+      start-dfs + start-yarn을 합쳐둔 명령어 (deperrcated)
+
+      634  cd root/.ssh
+      인증키를 확인하러 이동
+
+      635  ls
+      ssh 인증키 만들기 ssh-keygen -t rsa
+      ssh 인증키는 /root/.ssh/id_rsa,id_rsa.put
+
+      636  rm /root/.ssh/authorized_keys
+      키 삭제
+
+      637  cd /root
+
+      638  ssh-keygen -t rsa
+      키 생성
+
+      639  ssh-copy-id -i root@hadoop01
+      640  ssh-copy-id -i root@hadoop02
+      641  ssh-copy-id -i root@hadoop03
+      인증키 배포
+
+      642  ssh hadoop01 hostname
+      643  ssh hadoop02 hostname
+      644  ssh hadoop03 hostname
+      645  ssh hadoop04 hostname
+      ssh 인증키 사용가능한지 확인
+
+      647  cd /usr/local/hadoop/sbin
+      648  ./start-all.sh
+
+      649  ../bin/hadoop namenode -format
+      namenode에서 hdfs를 포맷
+
+      650  cd /root/.ssh
+      651  ls
+      652  cat known_hosts
+      등록된 호스트를 확인
+	
+      653  cd /usr/local/hadoop/sbin
+      654  ./start-all.sh
+      655  ../bin/hadoop fs -df -h
+      하둡 분산 파일시스템의 상태를 간략하게 보고하는 명령어
+
+      656  ./stop-all.sh
+      657  cd /etc/.ssh
+      658  cd /root/.ssh
+      659  ls
+      660  cp id_rsa.pub authorized_keys
+      master에서의 실행도 인증키를 사용하기 위해 강제로 인증키 생성
+      
+      * ssh-add -> 등록된 공개키를 명시적으로 활성화
+      
+      
+
+  2 > 방화벽
+  
+      696  service iptables start
+      부팅시 iptables 서비스가 없다는 경고를 보고 켜줬음
+      -> 사실 이게 방화벽을 키는 명령이여서 통신이 막히는 원인이 되었다
+
+      697  touch /etc/sysconfig/iptables
+      698  service iptables start       
+      699  iptables -L
+      700  service iptables save
+      방화벽을 임시로 생성한뒤 새 정책을 입력하고 저장하는 명령어
+
+      701  service ip6tables start
+      702  touch /etc/sysconfig/ip6tables
+      703  service ip6tables start       
+      704  ip6tables -L
+      705  service ip6tables save
+      ipv6은 어떤 이더넷에서도 사용하지 않기 때문에 사용해도 의미가 없음
+
+      708  ping 8.8.8.8
+      구글 dns 서버에 요청을 보내는 명령어
+
+      715  gedit /etc/hosts
+      default 게이트웨이가 잡히지 않는 문제를 route 명령으로 진단했음 파일 수정하러 이동
+
+      716  vi /etc/hosts
+      gedit으로 수정하면 ^M등의 특수문자가 파일에 남는다
+      path나 도메인이 영향받을수도 있기때문에 vi에서 지워준다
+
+      718  source /etc/hosts
+      관련 서비스의 restart 없이 적용시키기(쉘 프로그램 언어에 한정)
+
+      720  vi /etc/hosts.allow
+      나를 호스팅 할 수 있는 권한을 주는 파일
+
+      723  ssh root@hadoop02
+      원격접속하는 명령어
+      826  jps
+      827  cd /usr/local/hadoop-2.6.5/sbin
+      828  ./stop-all.sh
+      829  ../bin/hadoop namenode -format
+      830  reboot
+      831  vi environment
+      시스템 변수들을 넣을 수 있는 파일, 파일시스템이 마운트될때 가장 우선으로 읽어들인다
+
+      845  iptables -I INPUT 1 -p tcp --dport 9000 -j ACCEPT 
+      데이터노드의 접속상태를 보기 위해 hadoop/logs를 뒤져본 결과
+      master:9000으로의 연결이 지속적으로 refuse 되었음을 확인
+      9000포트의 연결상태를 명시적으로 지정해주었다
+
+      850  netstat -nep |grep 9000
+      9000번 포트가 열려있는지 확인 결과는 false
+
+
+      852  cat /etc/sysconfig/iptables
+      방화벽 정책 확인
+
+
+      857  umask
+      umask 값 확인
+
+      858  mkdir -p /hdata/dfs/name/data
+      분산 파일시스템을 권한 755 로 만들어주었다
+
+      862  ../sbin/start-yarn.sh
+      yarn deamon 시작
+
+      864  telnet localhost 9000
+      telnet으로 서버포트가 실제로 막혔는지 확인
+
+      869  -tnlp | grep :9000
+
+      875  iptables -I INPUT 1 -p tcp --dport 9000 -j ACCEPT 
+      방화벽이 9000번 포트에 관한 정책 추가
+
+      876  service iptables save
+      방화벽 상태 저장
+
+      895  telnet localhost 9000
+
+      896  telnet 127.0.0.1
+
+      897  telnet 192.168.56.104
+
+      904  ping 8.8.8.8
+      구글 dns 서버에 연결되었는지 확인
+
+      906  ifconfig
+      네트워크 인터페이스 점검
+
+      910  iptables -L
+      iptables 정책 재지정
+
+      911  ifup eth0
+      eth0가 내려가있는지 확인하고 명시적으로 재시작
+
+      916  route add default gw 0.0.0.0
+      게이트웨이 추가
+
+      917  sudo vi /etc/sysctl.conf
+      게이트웨이 정책 편집
+ 
+ 
+ 3 > hadoop dfs 테스트
+ 
+     1020  hdfs --help
+
+     1021  $HADOOP_PREFIX/bin/hdfs --help
+
+     1022  $HADOOP_PREFIX/bin/hdfs dfs -mkdir /user
+      분산 파일 시스템에 디렉토리 생성
+
+     1027  $HADOOP_PREFIX/bin/hdfs dfs -ls /user
+     1028  $HADOOP_PREFIX/bin/hdfs dfs -ls /
+      분산 파일 시스템 조회
+
+     1029  $HADOOP_PREFIX/bin/hdfs dfs -mkdir /user/bigdata
+     1030  touch aa.txt
+     1032  $HADOOP_PREFIX/bin/hdfs dfs -put $HADOOP_PREFIX/bin/hadoop /home/test/aa.txt 
+     1036  $HADOOP_PREFIX/bin/hdfs dfs -put $HADOOP_PREFIX/bin/hadoop /home/test/aa.txt /user/bigdata
+      hdfs 에 파일 업로드
+
+     1042  $HADOOP_PREFIX/bin/hadoop jar $HADOOP_PREFIX/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.5.jar grep bb.txt /user/bigdata/bb.txt 'dfs[a-z.]+'
+     1045  $HADOOP_PREFIX/bin/hadoop jar $HADOOP_PREFIX/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.5.jar grep bb.txt bb.txt 'dfs[a-z.]+'
+     1047  $HADOOP_PREFIX/bin/hadoop jar $HADOOP_PREFIX/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.5.jar grep bb.txt cc.txt 'dfs[a-z.]+'
+      sample jar 파일 실행
+
+     1049  cat /user/bigdata/bb.txt
+     1050  $HADOOP_PREFIX/bin/hadoop jar $HADOOP_PREFIX/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.5.jar grep bb.txt cc.txt'
+
+     1051  $HADOOP_PREFIX/bin/hadoop jar $HADOOP_PREFIX/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.5.jar grep bb.txt cc.txt'
+     1052  $HADOOP_PREFIX/bin/hadoop jar $HADOOP_PREFIX/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.5.jar grep bb.txt cc.txt'
+     1053  $HADOOP_PREFIX/bin/hadoop jar $HADOOP_PREFIX/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.5.jar grep /home/test/bb.txt /user/bigdata/bb.txt 'dfs[a-z.]+'
+     1055  $HADOOP_PREFIX/bin/hadoop jar $HADOOP_PREFIX/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.5.jar grep /user/bigdata/aa.txt /user/bigdata/bb.txt 'dfs[a-z.]+'
+     1059  $HADOOP_PREFIX/bin/hdfs dfs -put -f $HADOOP_PREFIX/bin/hadoop /home/test/aa.txt /user/bigdata
+     1060  $HADOOP_PREFIX/bin/hadoop jar $HADOOP_PREFIX/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.5.jar grep /user/bigdata/aa.txt /user/bigdata/bbb.txt 'dfs[a-z.]+'
+     1063  $HADOOP_PREFIX/bin/hadoop fs -cat /user/bigdata/bbb.txt/_SUCESS
+     1064  $HADOOP_PREFIX/bin/hadoop fs -cat /user/bigdata/bbb.txt
+     1065  $HADOOP_PREFIX/bin/hadoop fs -cat /user/bigdata/bbb.txt/_SUCCESS
+      hdfs 파일 출력
+
+     1078  $HADOOP_PREFIX/bin/hadoop fs -get /user/bigdata/bb.txt/* /home/test/bb
+     1079  mkdir bb
+     1080  $HADOOP_PREFIX/bin/hadoop fs -get /user/bigdata/bb.txt/* /home/test/bb
+ 
