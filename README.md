@@ -9,4 +9,7 @@ hadoop_install
   
     hadoop의 설치과정을 정리한 문서입니다
     
+when hadoop start wrong
+    
+    hadoop이 부팅될때 생겼던 문제들과 해결한 과정이 적혀있는 문서입니다
     
